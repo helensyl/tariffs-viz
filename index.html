@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liberation Day</title>
+  <link href="https://fonts.googleapis.com/css2?family=Georgia&family=Merriweather&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson@3"></script>
+  <style>
+    :root {
+      --accent-color: #b2182b;
+      --serif: 'Merriweather', Georgia, serif;
+      --sans: 'Helvetica Neue', Arial, sans-serif;
+    }
+    body {
+      font-family: var(--serif);
+      margin: 0;
+      background-color: #f5f0e6;
+      background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+      background-repeat: repeat;
+      background-attachment: fixed;      
+      color: #2e2e2e;
+      line-height: 1.6;
+      scroll-behavior: smooth;
+    }
+    header {
+      padding: 3em 1em 0 1em;
+      border-bottom: 1px solid #444;
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    footer {
+      padding: 3em 1em 0 1em;
+      border-top: 1px solid #888;
+      max-width: 900px;
+    }
+    h1, h2, h3, h4 {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 500;
+      letter-spacing: 0.4px;
+    }
+    .timeline-content strong {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 500;
+      font-size: 1.2em;
+      color: #444;
+    }
+    body, p, span, .timeline-content span, .stock-card-content {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 400;
+      font-size: 1.05em;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 0.2em;
+    }
+    @keyframes slideDownPrint {
+      0% {
+        transform: translateY(-100%);
+        opacity: 0;
+        max-height: 0;
+        clip-path: inset(100% 0 0 0);
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+        max-height: 1000px; /* arbitrarily large to allow image to grow */
+        clip-path: inset(0 0 0 0);
+      }
+    }
+    .intro-image {
+      display: block;
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      animation: slideDownPrint 1.2s ease-out forwards;
+      overflow: hidden;
+    }
+    .section {
+      max-width: 900px;
+      margin: 3em auto;
+      padding: 0 1em;
+    }
+    .lead-text {
+      font-size: 1.15em;
+      margin-bottom: 1em;
+      border-left: 4px solid var(--accent-color);
+      padding-left: 1em;
+      color: #444;
+    }
+    svg {
+      width: 100%;
+      height: auto;
+    }
+    .scroll-fade {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 1s ease, transform 1s ease;
+    }
+    .scroll-fade.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    #timeline {
+      position: relative;
+      padding-left: 50px;
+      margin-top: 0;
+    }
+    #timeline::before {
+      content: "";
+      position: absolute;
+      top: 50px;
+      left: 25px;
+      width: 2px;
+      height: 93%;
+      background: #b2182b;
+    }
+    .timeline-event {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 20px;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 1s ease-out, transform 1s ease-out;
+      margin: 4em 0;
+      position: relative;
+      align-items: center;
+    }
+    .timeline-event.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .timeline-event::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      background: #b2182b;
+      border-radius: 50%;
+      position: absolute;
+      left: -29px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    .timeline-date {
+      font-weight: bold;
+      font-size: 1.1em;
+      color: #444;
+    }
+    .timeline-content strong {
+      font-size: 1.2em;
+      color: #222;
+    }
+    .timeline-content span {
+      display: block;
+      margin-top: 0.5em;
+      font-size: 1em;
+      color: #555;
+    }
+    .hover-line {
+      pointer-events: none;
+    }
+    #stock-layout {
+      display: flex;
+      justify-content: space-between;
+      gap: 2em;
+      align-items: flex-start;
+    }
+    #stock-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1em;
+    }
+    .stock-sector-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      margin-bottom: 1em;
+    }
+    .stock-button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-start;
+    }
+    #stock-graph {
+      flex: 1;
+    }
+    #stock-controls button {
+      padding: 6px;
+      font-size: 0.9em;
+      cursor: pointer;
+    }
+    #stock-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 1em;
+    }
+    button, .stock-button, .sector-button {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 500;
+    }
+    .sector-button {
+      padding: 6px;
+      margin-bottom: 6px;
+      border: none;
+      background-color: transparent;
+      border-radius: 4px;
+      text-decoration: underline;
+      cursor: pointer;
+      color: #444;
+    }
+    .stock-button {
+      padding: 5px;
+      border: 1px solid #444;
+      background-color: transparent;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .stock-button.active {
+      border: 1px solid #444;
+    }
+    #stock-info-cards {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin: 2em auto;
+      max-width: 900px;
+    }
+    .stock-card {
+      width: 100%;
+      height: 150px;
+      perspective: 1000px;
+      cursor: pointer;
+      border-radius: 5px;
+      position: relative;
+    }
+    .stock-front-desc {
+      margin-top: 0.3em;
+      font-size: 0.95em;
+      color: #333;
+      font-style: italic;
+    }
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      text-align: center;
+      transition: transform 0.8s;
+      transform-style: preserve-3d;
+    }
+    .stock-card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+    .card-front, .card-back {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      border: none;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1em;
+      box-sizing: border-box;
+    }
+    .card-front {
+      background: transparent;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card-back {
+      background: transparent;
+      transform: rotateY(180deg);
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 0.9em;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Liberation Day: The 2025 U.S. Tariff Order</h1>
+    <p>
+      A visual story connecting politics to finance
+    </p>
+  </header>
+  <img class="intro-image" src="header.png" alt="trump tariff image" />
+  <div class="section">
+    <p class="lead-text">
+      Political news often feels disconnected from the financial world. In this interactive narrative, we explore how Trump's executive tariff order affected financial markets.    </p>
+  </div>
+  <div class="section">
+    <h2>Timeline of Events</h2>
+    <p class="lead-text">Follow how Trump's announcements escalated into action.</p>
+    <div id="timeline"></div>
+  </div>
+  <div class="section" id="map">
+    <h2>Countries Affected by Tariffs</h2>
+    <p class="lead-text">
+      Hover over countries to see the severity of reciprocal tariffs.
+    </p>
+    <div class="scroll-fade">
+      <svg id="choropleth-map" height="500"></svg>
+    </div>
+  </div>
+  <div class="section" id="treemap-section">
+    <p class="lead-text">
+      Visualize the affected country's trade volume with the US in 2024, shaded by the severity of reciprocal tariffs.
+    </p>
+    <svg class="scroll-fade" id="treemap" height="500"></svg>
+  </div>  
+  <div class="section" id="stocks">
+    <h2>How the <i>Stock Market</i> Reacted</h2>
+    <p class="lead-text">
+      Track 10 ETFs and indexes grouped by sectors most sensitive to global trade policy.
+    </p> 
+    <div class="scroll-fade" id="stock-layout">
+      <div id="stock-controls">
+        <div id="stock-buttons"></div>
+        <button id="toggle-all">Select/Deselect All</button>
+      </div>      
+      <div class="scroll-fade" id="stock-graph">
+        <div id="stock-legend"></div>
+        <svg id="stock-chart" height="400"></svg>
+      </div>
+    </div>
+  </div>  
+  <div class="section">
+    <h2>What's Behind Each Ticker?</h2>
+    <p class="lead-text">
+      Tap on each card to reveal the top companies that make up the ETF or index.
+    </p>
+    <div class="scroll-fade" id="stock-info-cards"></div>
+  </div>
+
+  <script>
+    const fadeObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.scroll-fade').forEach(el => fadeObserver.observe(el));
+  </script>
+
+  <script>
+    Promise.all([
+      d3.csv("timeline.csv"),
+      d3.csv("countries.csv"),
+      d3.csv("stocks.csv")
+    ]).then(([timelineData, countriesData, stocksData]) => {
+      renderTimeline(timelineData);
+      renderChoropleth(countriesData);
+      renderTreemap(countriesData);
+      renderStockChart(stocksData);
+    });
+
+function renderTimeline(data) {
+  const container = d3.select("#timeline");
+  data.forEach(d => {
+    container.append("div")
+      .attr("class", "timeline-event")
+      .html(`
+        <div class="timeline-date">${d.Date}</div>
+        <div class="timeline-content">
+          <strong>${d.Title}</strong>
+          <span>${d.Description}</span>
+        </div>
+      `);
+  });
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("show");
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll(".timeline-event").forEach(event => observer.observe(event));
+}
+
+function renderChoropleth(data) {
+  const svg = d3.select("#choropleth-map");
+  const width = svg.node().getBoundingClientRect().width;
+  const height = +svg.attr("height");
+  const projection = d3.geoNaturalEarth1().fitSize([width, height], { type: "Sphere" });
+  const path = d3.geoPath().projection(projection);
+
+  data.forEach(d => d.severity = +d["Reciprocal Tariff, Adjusted"].replace("%", ""));
+  const maxSeverity = 50;
+
+  const colorSteps = [
+    { pct: 0, color: "#fddbc7" },
+    { pct: 10, color: "#f4a582" },
+    { pct: 25, color: "#d6604d" },
+    { pct: 40, color: "#b2182b" },
+    { pct: 50, color: "#67001f" }
+  ];
+
+  const colorInterpolator = d3.scaleLinear()
+    .domain(colorSteps.map(d => d.pct / maxSeverity))
+    .range(colorSteps.map(d => d.color))
+    .interpolate(d3.interpolateRgb);
+
+  const colorScale = d3.scaleSequential(t => colorInterpolator(t)).domain([0, maxSeverity]);
+
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("background", "#f5f0e6")
+    .style("padding", "8px")
+    .style("border", "1px solid #444")
+    .style("border-radius", "4px")
+    .style("box-shadow", "0 2px 6px rgba(0,0,0,0.15)")
+    .style("pointer-events", "none")
+    .style("opacity", 0);
+
+  d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json").then(world => {
+    const countries = topojson.feature(world, world.objects.countries).features;
+    svg.append("g")
+      .selectAll("path")
+      .data(countries)
+      .join("path")
+      .attr("fill", d => {
+        const country = data.find(c => c.Country.trim() === d.properties.name.trim());
+        return country ? colorScale(country.severity) : "#bbb";
+      })
+      .attr("stroke", "#f5f0e6")
+      .attr("stroke-width", 0.5)
+      .attr("d", path)
+      .on("mouseover", (event, d) => {
+        const country = data.find(c => c.Country.trim() === d.properties.name.trim());
+        if (country) {
+          tooltip
+            .style("opacity", 1)
+            .html(`<strong>${country.Country}</strong><br>${country.severity}% tariff`);
+        }
+      })
+      .on("mousemove", event => {
+        tooltip
+          .style("left", `${event.pageX + 10}px`)
+          .style("top", `${event.pageY - 28}px`);
+      })
+      .on("mouseout", () => {
+        tooltip.style("opacity", 0);
+      });
+
+    const defs = svg.append("defs");
+    const linearGradient = defs.append("linearGradient")
+      .attr("id", "legend-gradient")
+      .attr("x1", "0%").attr("x2", "100%")
+      .attr("y1", "0%").attr("y2", "0%");
+
+    colorSteps.forEach(d => {
+      linearGradient.append("stop")
+        .attr("offset", `${(d.pct / maxSeverity) * 100}%`)
+        .attr("stop-color", d.color);
+    });
+
+    const legendWidth = 180;
+    const legendHeight = 12;
+
+    const legendGroup = svg.append("g")
+      .attr("transform", `translate(30, ${height - 100})`);
+
+    legendGroup.append("rect")
+      .attr("width", legendWidth)
+      .attr("height", legendHeight)
+      .style("fill", "url(#legend-gradient)")
+      .style("stroke", "none");
+
+    const legendScale = d3.scaleLinear()
+      .domain([0, maxSeverity])
+      .range([0, legendWidth]);
+
+    legendGroup.append("g")
+      .attr("transform", `translate(0, ${legendHeight})`)
+      .call(d3.axisBottom(legendScale).ticks(6).tickFormat(d => `${d}%`))
+      .selectAll("text")
+      .style("font-family", "'Cormorant Garamond', serif")
+      .style("font-size", "16px")
+      .style("fill", "#2e2e2e");
+  });
+}
+
+function renderTreemap(data) {
+  const svg = d3.select("#treemap");
+  const width = svg.node().getBoundingClientRect().width;
+  const height = +svg.attr("height");
+
+  data.forEach(d => {
+    d.severity = +d["Reciprocal Tariff, Adjusted"].replace("%", "");
+    d.volume = +d["Total Trade Volume with US, 2024"].replace(/[$,]/g, "");
+  });
+
+  data.sort((a, b) => b.volume - a.volume);
+
+  const root = d3.hierarchy({ children: data })
+    .sum(d => d.volume);
+
+  const treemapLayout = d3.treemap()
+    .size([width, height])
+    .tile(d3.treemapBinary);
+
+  treemapLayout(root);
+
+  const colorSteps = [
+    { pct: 0, color: "#fddbc7" },
+    { pct: 10, color: "#f4a582" },
+    { pct: 25, color: "#d6604d" },
+    { pct: 40, color: "#b2182b" },
+    { pct: 50, color: "#67001f" }
+  ];
+
+  const maxSeverity = 50;
+  const colorInterpolator = d3.scaleLinear()
+    .domain(colorSteps.map(d => d.pct / maxSeverity))
+    .range(colorSteps.map(d => d.color))
+    .interpolate(d3.interpolateRgb);
+
+  const colorScale = d3.scaleSequential(t => colorInterpolator(t)).domain([0, maxSeverity]);
+
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("background", "#f5f0e6")
+    .style("padding", "8px")
+    .style("border", "1px solid #444")
+    .style("border-radius", "4px")
+    .style("box-shadow", "0 2px 6px rgba(0,0,0,0.15)")
+    .style("pointer-events", "none")
+    .style("opacity", 0);
+
+  const nodes = svg.selectAll("g")
+    .data(root.leaves())
+    .enter()
+    .append("g")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  nodes.append("rect")
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .attr("fill", d => colorScale(d.data.severity))
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.5);
+
+  nodes.each(function(d) {
+    const group = d3.select(this);
+    const boxWidth = d.x1 - d.x0;
+    const boxHeight = d.y1 - d.y0;
+
+    if (boxWidth > 100 && boxHeight > 60) {
+      group.append("text")
+        .attr("x", 6)
+        .attr("y", 18)
+        .style("font-size", "14px")
+        .style("font-family", "'Cormorant Garamond', serif")
+        .style("fill", "white")
+        .text(d.data.Country);
+
+      group.append("text")
+        .attr("x", 6)
+        .attr("y", 36)
+        .style("font-size", "12px")
+        .style("font-family", "'Cormorant Garamond', serif")
+        .style("fill", "white")
+        .text(`Tariff: ${d.data.severity}%`);
+
+      group.append("text")
+        .attr("x", 6)
+        .attr("y", 52)
+        .style("font-size", "12px")
+        .style("font-family", "'Cormorant Garamond', serif")
+        .style("fill", "white")
+        .text(`$${d.data.volume.toLocaleString()}`);
+    } else {
+      group.on("mouseover", (event) => {
+        tooltip.style("opacity", 1)
+          .html(`<strong>${d.data.Country}</strong><br>
+                 Tariff: ${d.data.severity}%<br>
+                 Trade Volume: $${d.data.volume.toLocaleString()}`);
+      })
+      .on("mousemove", event => {
+        tooltip.style("left", `${event.pageX + 10}px`).style("top", `${event.pageY - 28}px`);
+      })
+      .on("mouseout", () => tooltip.style("opacity", 0));
+    }
+  });
+}
+
+function renderStockChart(data) {
+  const stockColorMap = {
+    XLI: '173, 216, 230',
+    SOXX: '200, 160, 230',
+    MOO: '25, 90, 140',
+    XLB: '85, 60, 130',
+    XLK: '144, 238, 144',
+    XLF: '255, 235, 59',
+    XLP: '85, 107, 47',
+    VCR: '204, 153, 0',
+    SPY: '245, 124, 0',
+    DJI: '211, 47, 47'
+  };
+
+  const svg = d3.select("#stock-chart");
+  const width = svg.node().getBoundingClientRect().width;
+  const height = +svg.attr("height");
+  const margin = { top: 20, right: 95, bottom: 30, left: 50 };
+
+  const parseDate = d3.timeParse("%m/%d/%Y");
+  data.forEach(d => {
+    d.date = parseDate(d.Date);
+    d.close = +d.Close.replace(/[$,]/g, "");
+    d.volume = +d.Volume.replace(/,/g, "");
+    d.change = +d["% Change"];
+    d.Stock = d.Stock.trim();
+  });
+  data = data.filter(d => d.date && !isNaN(d.close));
+
+  const stocks = Array.from(new Set(data.map(d => d.Stock)));
+  const x = d3.scaleTime().domain(d3.extent(data, d => d.date)).range([margin.left, width - margin.right]);
+  const y = d3.scaleLinear()
+  .domain([0.92, 1.03])
+  .range([height - margin.bottom, margin.top]);
+
+  const line = d3.line().x(d => x(d.date)).y(d => y(1 + d.change));
+
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("background", "#f5f0e6")
+    .style("padding", "8px")
+    .style("border", "1px solid #444")
+    .style("border-radius", "4px")
+    .style("box-shadow", "0 2px 6px rgba(0,0,0,0.15)")
+    .style("pointer-events", "none")
+    .style("opacity", 0);
+
+  svg.append("text")
+    .attr("transform", `translate(15, ${height / 2}) rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .style("font-size", "12px")
+    .text("Relative Change (1.0 = baseline)");
+
+  svg.append("g")
+    .attr("transform", `translate(0,${height - margin.bottom})`)
+    .call(d3.axisBottom(x).tickFormat(d3.timeFormat("%b %d")))
+    .selectAll("text")
+    .style("font-family", "'Cormorant Garamond', serif")
+    .style("font-size", "1.2em");
+
+  svg.append("g")
+    .attr("transform", `translate(${margin.left},0)`)
+    .call(d3.axisLeft(y))
+    .selectAll("text")
+    .style("font-family", "'Cormorant Garamond', serif")
+    .style("font-size", "1.2em");
+
+  const stockLines = svg.append("g").attr("class", "stock-lines");
+
+  const hoverLine = svg.append("line")
+    .attr("class", "hover-line")
+    .attr("stroke", "#444")
+    .attr("stroke-width", 1)
+    .attr("stroke-dasharray", "4 4") // Dotted line
+    .attr("y1", margin.top)
+    .attr("y2", height - margin.bottom)
+    .style("opacity", 0);
+
+  svg.append("rect")
+    .attr("width", width)
+    .attr("height", height)
+    .style("fill", "none")
+    .style("pointer-events", "all")
+    .on("mousemove", (event) => {
+    const [mouseX, mouseY] = d3.pointer(event);
+    const hoveredDate = x.invert(mouseX);
+    const hoveredValue = y.invert(mouseY);
+
+    if (mouseX >= margin.left && mouseX <= width - margin.right) {
+      hoverLine
+        .attr("x1", mouseX)
+        .attr("x2", mouseX)
+        .style("opacity", 1);
+
+      const nearestPoints = [...selectedStocks].map(stock => {
+        const stockData = data.filter(d => d.Stock === stock);
+        const i = d3.bisector(d => d.date).left(stockData, hoveredDate);
+        const before = stockData[i - 1];
+        const after = stockData[i];
+        return !before ? after : !after ? before : 
+              (hoveredDate - before.date < after.date - hoveredDate ? before : after);
+      });
+
+      const nearest = nearestPoints.reduce((a, b) => 
+        Math.abs(x(a.date) - mouseX) < Math.abs(x(b.date) - mouseX) ? a : b
+      );
+
+      const relativeChange = (hoveredValue - 1) * 100;
+      const formattedChange = `${relativeChange >= 0 ? "+" : ""}${relativeChange.toFixed(1)}`;
+      const changeColor = relativeChange >= 0 ? "#2e7d32" : "#c62828";
+
+      tooltip
+        .style("opacity", 1)
+        .html(`
+          <strong>${nearest.Stock}</strong><br>
+          <strong>Date:</strong> ${d3.timeFormat("%b %d, %Y")(hoveredDate)}<br>
+          <strong>Relative Change:</strong> <span style="color:${changeColor}">${formattedChange}</span><br>
+          <strong>Close:</strong> $${nearest.close.toFixed(2)}<br>
+          <strong>Volume:</strong> ${nearest.volume.toLocaleString()}
+        `)
+        .style("left", `${event.pageX + 10}px`)
+        .style("top", `${event.pageY - 28}px`);
+    } else {
+      hoverLine.style("opacity", 0);
+      tooltip.style("opacity", 0);
+    }
+  });
+
+  const selectedStocks = new Set(stocks);
+  const stockSectors = {
+    "Trade-related ETFs": ["XLI", "SOXX", "MOO", "XLB"],
+    "Investor-sensitive ETFs": ["XLK", "XLF", "XLP", "VCR"],
+    "Benchmark Indexes": ["SPY", "DJI"]
+  };
+
+  const stockButtons = d3.select("#stock-buttons");
+  Object.entries(stockSectors).forEach(([sector, stocksInSector]) => {
+    const groupDiv = stockButtons.append("div").attr("class", "stock-sector-group");
+    groupDiv.append("button")
+      .text(`${sector}`)
+      .attr("class", "sector-button")
+      .on("click", () => {
+        const allSelected = stocksInSector.every(s => selectedStocks.has(s));
+        stocksInSector.forEach(s => {
+          if (allSelected) {
+            selectedStocks.delete(s);
+            d3.select(`#btn-${s}`).classed("active", false).style("background-color", "transparent");
+          } else {
+            selectedStocks.add(s);
+            d3.select(`#btn-${s}`).classed("active", true).style("background-color", `rgba(${stockColorMap[s]}, 0.5)`);
+          }
+        });
+        update([...selectedStocks]);
+      });
+
+    const buttonRow = groupDiv.append("div").attr("class", "stock-button-row");
+    stocksInSector.forEach(stock => {
+      buttonRow.append("button")
+        .text(stock)
+        .attr("id", `btn-${stock}`)
+        .attr("class", "stock-button active")
+        .style("border", `1px solid rgb(${stockColorMap[stock]})`)
+        .style("background-color", `rgba(${stockColorMap[stock]}, 0.5)`)
+        .on("click", function () {
+          const btn = d3.select(this);
+          const isActive = btn.classed("active");
+          btn.classed("active", !isActive);
+          btn.style("background-color", isActive ? "transparent" : `rgba(${stockColorMap[stock]}, 0.5)`);
+          if (isActive) {
+            selectedStocks.delete(stock);
+          } else {
+            selectedStocks.add(stock);
+          }
+          update([...selectedStocks]);
+        });
+    });
+  });
+
+  d3.select("#toggle-all").on("click", () => {
+    const isAllSelected = selectedStocks.size === stocks.length;
+    if (isAllSelected) {
+      selectedStocks.clear();
+    } else {
+      stocks.forEach(s => selectedStocks.add(s));
+    }
+    stocks.forEach(stock => {
+      const btn = d3.select(`#btn-${stock}`);
+      const shouldBeActive = !isAllSelected;
+      btn.classed("active", shouldBeActive);
+      btn.style("background-color", shouldBeActive ? `rgba(${stockColorMap[stock]}, 0.5)` : "transparent");
+    });
+    update([...selectedStocks]);
+  });
+
+  function update(selectedStocksArray) {
+    stockLines.selectAll("*").remove();
+
+    selectedStocksArray.forEach(stock => {
+      const stockData = data.filter(d => d.Stock === stock);
+      stockLines.append("path")
+        .datum(stockData)
+        .attr("fill", "none")
+        .attr("stroke", `rgb(${stockColorMap[stock]})`)
+        .attr("stroke-width", 1.5)
+        .attr("d", line);
+
+      stockLines.selectAll(`.dot-${stock}`)
+        .data(stockData)
+        .enter().append("circle")
+        .attr("cx", d => x(d.date))
+        .attr("cy", d => y(1 + d.change))
+        .attr("r", 3)
+        .attr("fill", `rgb(${stockColorMap[stock]})`)
+        .on("mouseover", (event, d) => {
+          tooltip.style("opacity", 1)
+            .html(`<strong>${d.Stock}</strong><br>Date: ${d3.timeFormat("%b %d, %Y")(d.date)}<br>Close: $${d.close.toFixed(2)}<br>Volume: ${d.volume.toLocaleString()}<br>% Change: ${(d.change * 100).toFixed(2)}%`);
+        })
+        .on("mousemove", event => {
+          tooltip.style("left", `${event.pageX + 10}px`).style("top", `${event.pageY - 28}px`);
+        })
+        .on("mouseout", () => {
+          tooltip.style("opacity", 0);
+        });
+    });
+  }
+  update(stocks);
+
+  const stockInfo = {
+    "XLI": { name: "Industrials", companies: "Boeing, Honeywell, Caterpillar" },
+    "SOXX": { name: "Semiconductors", companies: "Nvidia, Broadcom, Intel" },
+    "MOO": { name: "Agribusiness", companies: "Deere & Co, ADM, Corteva" },
+    "XLB": { name: "Materials", companies: "Dow, DuPont, Linde" },
+    "XLK": { name: "Technology", companies: "Apple, Microsoft, Nvidia" },
+    "XLF": { name: "Financials", companies: "JPMorgan, Goldman Sachs, Bank of America" },
+    "XLP": { name: "Consumer Staples", companies: "P&G, Coca-Cola, Walmart" },
+    "VCR": { name: "Consumer Discretionary", companies: "Amazon, Home Depot, Tesla" },
+    "SPY": { name: "S&P 500 Index", companies: "Apple, Microsoft, Amazon" },
+    "DJI": { name: "Dow Jones Index", companies: "Apple, Goldman Sachs, McDonald's" }
+  };
+  const stockInfoCards = d3.select("#stock-info-cards");
+  stocks.forEach(stock => {
+    const card = stockInfoCards.append("div")
+      .attr("class", "stock-card")
+      .html(`
+        <div class="card-inner">
+          <div class="card-front">
+            <strong>${stock}</strong>
+            <div class="stock-front-desc">${stockInfo[stock]?.name || "N/A"}</div>
+          </div>
+          <div class="card-back">
+            Companies: ${(stockInfo[stock]?.companies || "N/A")}
+          </div>
+        </div>
+      `)
+      .on("click", function () {
+        d3.select(this).classed("flipped", !d3.select(this).classed("flipped"));
+      });
+
+    card.select(".card-front")
+      .style("border", `1px solid rgb(${stockColorMap[stock]})`)
+
+    card.select(".card-back")
+      .style("border", `1px solid rgb(${stockColorMap[stock]})`)
+      .style("background-color", `rgba(${stockColorMap[stock]}, 0.5)`);
+  });
+}
+  </script>
+</body>
+
+<footer style="text-align: center; font-size: 0.8em; margin: 3em auto; color: #888;">
+  Header image from 
+  <a href="https://foreignpolicy.com/2025/02/06/trump-global-trade-system-china-reciprocal-tariffs/" 
+  target="_blank" style="color: #888; text-decoration: underline;">Foreign Policy</a><br>
+  Executive Order Summary from 
+  <a href="https://www.whitehouse.gov/fact-sheets/2025/04/report-to-the-president-on-the-america-first-trade-policy-executive-summary/" 
+  target="_blank" style="color: #888; text-decoration: underline;">The White House</a><br>
+  Reciprocal Tariff Executive Order from 
+  <a href="https://www.whitehouse.gov/presidential-actions/2025/04/regulating-imports-with-a-reciprocal-tariff-to-rectify-trade-practices-that-contribute-to-large-and-persistent-annual-united-states-goods-trade-deficits/" 
+  target="_blank" style="color: #888; text-decoration: underline;">The White House</a><br>
+  Reciprocal Tariffs by Countries List from
+  <a href="chrome-extension://efaidnbmnnnibpcajpcglclefindmkaj/https://www.whitehouse.gov/wp-content/uploads/2025/04/Annex-I.pdf" 
+  target="_blank" style="color: #888; text-decoration: underline;">The White House</a><br>
+  US Trading Imports & Exports from
+  <a href="https://tradingeconomics.com/united-states/imports-by-country" 
+  target="_blank" style="color: #888; text-decoration: underline;">Trading Economics</a>
+</footer>
+</html>
